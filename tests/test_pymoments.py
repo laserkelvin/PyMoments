@@ -26,7 +26,7 @@ def test_isotopologues():
     # we expect at the default level oxygen 18, so two isotopologues
     assert len(isotopologues) == 96
     # raise Exception([iso.rot_con for iso in isotopologues])
-    raise Exception("\n".join([iso.dump() for iso in isotopologues]))
+    # raise Exception("\n".join([iso.dump() for iso in isotopologues]))
 
 
 def test_com():
