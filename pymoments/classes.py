@@ -203,7 +203,7 @@ class Molecule:
         for index, line in enumerate(xyz_str):
             split_line = line.split()
             symbol = split_line[0]
-            coords = np.array([float(value) for value in line[1:]])
+            coords = np.array([float(value) for value in split_line[1:]])
             # get the most abundant isotope
             isotopes = [
                 isotope for isotope in element(symbol).isotopes if isotope.abundance
@@ -437,14 +437,15 @@ class Molecule:
 
     def dump(self):
         template = """===================== Primary input
-        Formula: {symbols}
-        Masses (AMU): {mass}
-        ===================== Parameters
-        Rotational constants (MHz): {rot_con}
-        Inertial axis vectors:\t {inertial_vector}
-        ===================== Derived values
-        Asymmetry parameter: {kappa}
-        Inertial defect (amu A**2): {defect}
+Formula: {symbols}
+Masses (AMU): {mass}
+===================== Parameters
+Rotational constants (MHz): {rot_con}
+Inertial axis vectors:
+{inertial_vector}
+===================== Derived values
+Asymmetry parameter: {kappa:.4f}
+Inertial defect (amu A**2): {defect:.4f}
         """
         parameter_dict = {
             "symbols": self.get_symbols(),

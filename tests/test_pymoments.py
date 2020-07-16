@@ -10,6 +10,16 @@ def test_version():
     assert __version__ == "0.1.0"
 
 
+def test_xyz():
+    xyz_str = """
+    O 0.030541 0.042037 -0.000000
+    H -0.759459 0.042037 -0.000000
+    H 0.274665 -0.709298 0.000000
+    """
+    molecule = Molecule.from_xyz(xyz_str)
+    assert len(molecule) == 3
+
+
 def test_com():
     """
     Test to make sure the center of mass calculation is working
