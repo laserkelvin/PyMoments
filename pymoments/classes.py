@@ -45,7 +45,7 @@ class Molecule:
     A high-level implementation of a `Molecule`, where the primary
     function is to store a collection of `Atom` objects as a list
     attribute.
-    
+
     Additional functionality include convenience functions for computing
     rotational constants for a set of isotopologues, as well as determining
     scaling factors.
@@ -64,7 +64,7 @@ class Molecule:
 
     def __len__(self):
         return len(self.atoms)
-    
+
     def __eq__(self, other):
         return np.allclose(self.rot_con, other.rot_con)
 
@@ -104,18 +104,18 @@ class Molecule:
         for each line entry which provides a nice transparent, abstract method
         for tracking parameters of each row. The `Atom` objects are collected
         up at the end, and stored in an instance of the `Molecule` class.
-        
+
         An example of the input string looks like this:
-        
+
         zmat_str = "
         O
         H 1 0.79
         H 1 0.79 2 108.00
         "
-        
+
         Each atom symbol is followed by the atom index (connectivity)
         and the corresponding parameter (bond, angle, dihedral).
-        
+
         Rare isotopes can also be specified; for deuterium you can replace
         H with D, and for others you can use square brackets:
         zmat_str = "
@@ -180,7 +180,7 @@ class Molecule:
         standard .xyz file format, where the first two lines are the number of
         atoms and a comment line respectively; rather, this is the format where
         only the Atom X Y Z per line is required.
-        
+
         For example:
         xyz_str = "
         O 0.030541 0.042037 -0.000000
@@ -223,11 +223,11 @@ class Molecule:
         Create a `Molecule` object using "legacy" input. This file format is
         not recommended as it is unable to take advantage of some of the newer
         functionality, but is supported just for backwards compatibility.
-        
+
         The legacy input looks like this:
         "
-        h2c3s calculations; CPL 326, 530 (2000)    
-        H2CCCS 
+        h2c3s calculations; CPL 326, 530 (2000)
+        H2CCCS
             6	 1    1
             1	 0    0    0	0.0	        0.0        0.0    31.972070
             2	 1    0    0	1.594000    0.0        0.0    12.000000
@@ -355,7 +355,7 @@ class Molecule:
         and kg, and perform the final conversion of rotational constants
         into MHz using `scipy.constants` so that people can track the unit
         conversions appropriately.
-        
+
         Keep in mind that the rotational constants returned are actually
         sorted: these may not correspond to the actual orientation of the
         principal axes, and you will have to make that judgement call yourself.
@@ -376,24 +376,24 @@ class Molecule:
         masses = self.get_masses()
         # unit conversions; everything is better in SI
         coords *= 1e-9  # to meters
-        masses *= constants.atomic_mass   # to kg
+        masses *= constants.atomic_mass  # to kg
         inertia_tensor = np.zeros((3, 3))
         # hard coded inertia matrix elements
         inertia_tensor[0, 0] = np.sum(
-            (coords[:, 1] ** 2.0 + coords[:, 2] ** 2.0) * masses[None,:]
+            (coords[:, 1] ** 2.0 + coords[:, 2] ** 2.0) * masses[None, :]
         )
         inertia_tensor[1, 1] = np.sum(
-            (coords[:, 0] ** 2.0 + coords[:, 2] ** 2.0) * masses[None,:]
+            (coords[:, 0] ** 2.0 + coords[:, 2] ** 2.0) * masses[None, :]
         )
         inertia_tensor[2, 2] = np.sum(
-            (coords[:, 0] ** 2.0 + coords[:, 1] ** 2.0) * masses[None,:]
+            (coords[:, 0] ** 2.0 + coords[:, 1] ** 2.0) * masses[None, :]
         )
         # off-diagonal elements
-        inertia_tensor[0, 1] = -np.sum(coords[:, 0] * coords[:, 1] * masses[None,:])
+        inertia_tensor[0, 1] = -np.sum(coords[:, 0] * coords[:, 1] * masses[None, :])
         inertia_tensor[1, 0] = inertia_tensor[0, 1]
-        inertia_tensor[0, 2] = -np.sum(coords[:, 0] * coords[:, 2] * masses[None,:])
+        inertia_tensor[0, 2] = -np.sum(coords[:, 0] * coords[:, 2] * masses[None, :])
         inertia_tensor[2, 0] = inertia_tensor[0, 2]
-        inertia_tensor[1, 2] = -np.sum(coords[:, 1] * coords[:, 2] * masses[None,:])
+        inertia_tensor[1, 2] = -np.sum(coords[:, 1] * coords[:, 2] * masses[None, :])
         inertia_tensor[2, 1] = inertia_tensor[1, 2]
         # symmetrize the matrix
         # inertia_tensor = np.maximum(inertia_tensor, inertia_tensor.T)
@@ -402,12 +402,9 @@ class Molecule:
         # compute the rotation matrix using SVD
         _, _, rot = np.linalg.svd(inertia_tensor)
         # convert PMI to 1/cm
-        rot_con = (
-            constants.h
-            / (8 * (np.pi) ** 2 * (constants.c * 100.0) * pmi)
-        )
+        rot_con = constants.h / (8 * (np.pi) ** 2 * (constants.c * 100.0) * pmi)
         # convert PMI from 1/cm to MHz
-        rot_con *= constants.c / 100.
+        rot_con *= constants.c / 100.0
         # if we request for a shift, and we haven't already done so
         # we can rotate the atomic coordinates to the principal axis orientation
         if shift and not self.inertial:
@@ -468,21 +465,23 @@ Scaling factor: {scaling}
             "kappa": self.compute_kappa(),
             "defect": self.compute_inertial_defect(),
             "scaling": self.scaling,
-            "short_mass": np.round(self.get_masses(), 0)
+            "short_mass": np.round(self.get_masses(), 0),
         }
         return template.format_map(parameter_dict)
 
     def generate_isotopologues(self, min_abundance=0.001):
         masses = list()
         for symbol in self.get_symbols():
-            isotopes = [isotope for isotope in element(symbol).isotopes if isotope.abundance]
+            isotopes = [
+                isotope for isotope in element(symbol).isotopes if isotope.abundance
+            ]
             isotopes = filter(lambda x: x.abundance >= min_abundance, isotopes)
             masses.append([isotope.mass for isotope in isotopes])
         isotopologues = list()
         full_con = list()
         # iterate through every combination
         for iso_masses in product(*masses):
-            iso =self.modify_atom_masses(iso_masses, copy=True)
+            iso = self.modify_atom_masses(iso_masses, copy=True)
             _ = iso.orient()
             if np.round(iso.rot_con.sum(), 6) not in full_con:
                 full_con.append(np.round(iso.rot_con.sum(), 6))

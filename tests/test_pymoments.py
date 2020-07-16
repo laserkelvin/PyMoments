@@ -48,8 +48,8 @@ def test_com():
 
 def test_legacy_zmat():
     zmat_str = """
-    h2c3s calculations; CPL 326, 530 (2000)    
-    H2CCCS 
+    h2c3s calculations; CPL 326, 530 (2000)
+    H2CCCS
     6	 1    1
     1	 0    0    0	0.0	        0.0        0.0    31.972070
     2	 1    0    0	1.594000    0.0        0.0    12.000000
@@ -82,5 +82,5 @@ def test_legacy_zmat():
     assert np.abs(com - ref_com).sum() <= 1e-2
     # test the whole shebang, and compare rotational constants
     com, rotcon, pmm = molecule.orient()
-    reference = np.array([290228.46266522,   2496.61473982,   2475.32143207])
+    reference = np.array([290228.46266522, 2496.61473982, 2475.32143207])
     assert np.allclose(reference, rotcon)

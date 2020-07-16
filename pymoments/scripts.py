@@ -1,30 +1,27 @@
-
 import click
 
 from pymoments.classes import Molecule
 
 
 @click.command()
-@click.argument(
-    "input_file", type=click.File("r")
-)
+@click.argument("input_file", type=click.File("r"))
 @click.option(
     "--format",
     default="zmat",
     type=click.Choice(["legacy", "zmat", "xyz"], case_sensitive=False),
-    help="Specifies the file format to parse."
+    help="Specifies the file format to parse.",
 )
 @click.option(
     "--iso",
     default=False,
     is_flag=True,
-    help="Controls whether isotopologues are generated."
+    help="Controls whether isotopologues are generated.",
 )
 @click.option(
     "--abundance",
     default=1e-4,
     type=float,
-    help="Decimal natural abundance threshold for rare isotopes."
+    help="Decimal natural abundance threshold for rare isotopes.",
 )
 def run_pymoments(input_file, format, iso, abundance=1e-4):
     """
