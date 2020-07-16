@@ -2,6 +2,7 @@ from typing import List
 from collections import namedtuple
 from copy import deepcopy
 from warnings import warn
+from itertools import product
 
 import numpy as np
 from mendeleev import element
@@ -456,3 +457,17 @@ Inertial defect (amu A**2): {defect:.4f}
             "defect": self.compute_inertial_defect(),
         }
         return template.format_map(parameter_dict)
+
+    def generate_isotopologues(self, min_abundance=0.001):
+        masses = list()
+        for atom in self.atoms:
+            isotopes = [isotope.mass for isotope in element(atom).isotopes if isotope.abundance]
+            isotopes = filter(isotopes, lambda x: x.abundance >= min_abundance)
+            masses.append([isotope.mass for isotope in isotopes])
+        isotopologues = list()
+        # iterate through every combination
+        for iso_masses in product(*masses):
+            iso =self.modify_atom_masses(iso_masses, copy=True)
+            _ = iso.orient()
+            isotopologues.append(iso)
+        return isotopologues
