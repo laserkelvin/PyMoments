@@ -2,12 +2,13 @@
 from typing import List
 from collections import namedtuple
 from copy import deepcopy
+from warnings import warn
 
 import numpy as np
 from mendeleev import element
 from scipy import constants
 
-from pymoments.main import compute_xyz, compute_angle, rotate_coordinates
+from pymoments.main import compute_xyz, compute_angle, rotate_coordinates, kappa, inertial_defect
 
 # These namedtuples are convenient for having some structure in
 # how the different types of connectivity can be tracked
@@ -53,6 +54,9 @@ class Molecule:
     
     def __repr__(self):
         return "\n".join([str(atom) for atom in self.atoms])
+    
+    def __len__(self):
+        return len(self.atoms)
     
     def __truediv__(self, other):
         if type(other) == type(self):
@@ -116,14 +120,16 @@ class Molecule:
         molecule
             Instance of a `Molecule` object
         """
-        zmat = zmat.strip().split("\n")
-        natoms = len(zmat)
+        zmat_str = zmat_str.strip().split("\n")
+        natoms = len(zmat_str)
         xyz = np.zeros((natoms, 3), dtype=float)
         atoms = list()
-        for index, line in enumerate(zmat):
+        for index, line in enumerate(zmat_str):
             split_line = line.split()
             symbol = split_line[0]
-            mass = element(symbol).mass
+            # this is a quick one-liner using list-comprehensions to get the most abundant mass
+            isotopes = [isotope for isotope in element(symbol).isotopes if isotope.abundance]
+            mass = max(isotopes, key=lambda x: x.abundance).mass
             parameters = {key: None for key in ["bond", "angle", "dihedral"]}
             # first atom has nothing
             if index != 0:
@@ -166,7 +172,7 @@ class Molecule:
         return molecule
     
     @classmethod
-    def from_legacy(cls, zmat_str: str):
+    def from_legacy_zmat(cls, zmat_str: str):
         """
         The legacy input looks like this:
         "
@@ -192,6 +198,40 @@ class Molecule:
         zmat_str = zmat_str[2:]
         desc = zmat_str.pop(0).split()
         natoms = int(desc[0])
+        atoms = list()
+        for index, line in enumerate(zmat_str):
+            if index == natoms:
+                break
+            else:
+                parameters = {key: None for key in ["bond", "angle", "dihedral"]}
+                split_line = line.split()
+                mass = float(split_line[-1])
+                # No symbols are defined for legacy ZMAT specification, and we
+                # can't really just infer from mass
+                symbol = "X"
+                if index == 0:
+                    pass
+                else:
+                    # Read in the connectivity and parameters
+                    for offset, con_type in zip(range(1,4), [Bond, Angle, Dihedral]):
+                        name = con_type.__name__.lower()
+                        # get the connectivity
+                        connection = int(split_line[offset])
+                        if connection == 0:
+                            pass
+                        else:
+                            value = float(split_line[offset + 3])
+                            if offset != 1:
+                                # convert angles to radians
+                                value = np.deg2rad(value)
+                        parameters[name] = con_type(connection - 1, value)
+                atom = Atom(index, symbol, mass, **parameters)
+                atoms.append(atom)
+        for atom in atoms:
+            atom.xyz = compute_xyz(atom, atoms)
+        molecule = cls(atoms)
+        return molecule
+                
     
     def get_coords(self):
         return np.vstack([atom.xyz for atom in self.atoms])
@@ -279,10 +319,55 @@ class Molecule:
             self.inertial = True
             for atom in self.atoms:
                 atom.xyz = rotate_coordinates(atom.xyz, pmm)
+        # This sorts the rotational constants in order of A > B > C, and similarly
+        # the principal axes vectors too (row order)
         ordering = np.argsort(rot_con)[::-1]
         return rot_con[ordering], pmm[ordering]
     
-    def final_frame(self):
+    def orient(self):
+        """
+        Shifts the molecular cartesian coordinates into the center of mass and
+        principal axis frame sequentially. We compute the COM corrections first,
+        followed by the inertial corrections.
+
+        Returns
+        -------
+        np.ndarray, np.ndarray, np.ndarray
+            Returns the COM, Rotational constants in MHz, and inertial
+            axes vectors.
+        """
         com = self.compute_com(True)
         (rotational_constants, inertial_vector) = self.compute_inertia_tensor(True)
+        self.rot_con, self.pmm = rotational_constants, inertial_vector
         return com, rotational_constants, inertial_vector
+    
+    def compute_kappa(self):
+        if not self.com or not self.inertial:
+            warn("Not in center of mass or principal axis frame; not meaningful!")
+        return kappa(*self.rot_con)
+
+    def compute_inertial_defect(self):
+        if not self.com or not self.inertial:
+            warn("Not in center of mass or principal axis frame; not meaningful!")
+        return inertial_defect(*self.rot_con)
+    
+    def dump(self):
+        template = """===================== Primary input
+        Formula: {symbols}
+        Masses (AMU): {mass}
+        ===================== Parameters
+        Rotational constants (MHz): {rot_con}
+        Inertial axis vectors:\t {inertial_vector}
+        ===================== Derived values
+        Asymmetry parameter: {kappa}
+        Inertial defect (amu A**2): {defect}
+        """
+        parameter_dict = {
+            "symbols": self.get_symbols(),
+            "mass": self.get_masses(),
+            "rot_con": self.rot_con,
+            "inertial_vector": self.pmm,
+            "kappa": self.compute_kappa(),
+            "defect": self.compute_inertial_defect()
+        }
+        return template.format_map(parameter_dict)

@@ -118,3 +118,64 @@ def rotate_coordinates(coords: np.ndarray, axis_coords: np.ndarray) -> np.ndarra
     # transform the coordinates into the principal axis
     return r_mat.apply(coords)
 
+
+def kappa(A: float, B: float, C: float):
+    """
+    Calculate Ray's asymmetry parameter for a given set of A, B, and C rotational constants.
+    This parameter determines how asymmetric a molecule is by setting a range between two limits: the prolate (+1)
+    and the oblate (-1) limits.
+
+    Parameters
+    ----------
+    A, B, C: float
+        Rotational constant in MHz for each respective axis
+
+    Returns
+    -------
+    kappa: float
+        Ray's asymmetry parameter
+    """
+    return (2 * B - A - C) / (A - C)
+
+
+def inertial_defect(A: float, B: float, C: float):
+    """
+    Calculate the inertial defect of a molecule with a set of A, B, and C rotational constants.
+
+    Parameters
+    ----------
+    A, B, C - float
+        Rotational constant along the respective principal axis in units of MHz.
+
+    Returns
+    -------
+    delta - float
+        The inertial defect in units of amu Ang**2
+    """
+    frac = np.reciprocal([C, B, A])
+    cumdiff = frac[0]
+    # Calculate the cumulative difference; i.e. 1/C - 1/B - 1/A
+    for value in frac[1:]:
+        cumdiff -= value
+    return cumdiff * 505379.0
+
+
+def rotcon2pmi(rotational_constant: float):
+    """
+    Convert rotational constants in units of MHz to
+    Inertia, in units of amu A^2.
+
+    The conversion factor is adapted from:
+    Oka & Morino, JMS (1962) 8, 9-21
+    This factor comprises h / pi^2 c.
+
+    Parameters
+    ----------
+    rotational_constant:
+        Corresponding rotational constant in MHz
+
+    Returns
+    -------
+    Rotational constant converted to units of amu A^2
+    """
+    return 1 / (rotational_constant / 134.901)
