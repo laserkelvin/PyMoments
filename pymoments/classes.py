@@ -64,6 +64,9 @@ class Molecule:
 
     def __len__(self):
         return len(self.atoms)
+    
+    def __eq__(self, other):
+        return np.allclose(self.rot_con, other.rot_con)
 
     def __truediv__(self, other):
         if type(other) == type(self):
@@ -306,10 +309,11 @@ class Molecule:
             [description]
         """
         assert len(masses) == len(self)
-        print(f"Old masses: {self.get_masses()}")
         if copy:
             new_molecule = deepcopy(self)
             new_molecule.modify_atom_masses(masses, copy=False)
+            new_molecule.inertial = False
+            new_molecule.com = False
             return new_molecule
         else:
             for atom, new_mass in zip(self.atoms, masses):
@@ -372,38 +376,44 @@ class Molecule:
         masses = self.get_masses()
         # unit conversions; everything is better in SI
         coords *= 1e-9  # to meters
-        masses *= constants.atomic_mass
+        masses *= constants.atomic_mass   # to kg
         inertia_tensor = np.zeros((3, 3))
         # hard coded inertia matrix elements
         inertia_tensor[0, 0] = np.sum(
-            (coords[:, 1] ** 2.0 + coords[:, 2] ** 2.0) * masses[:, None]
+            (coords[:, 1] ** 2.0 + coords[:, 2] ** 2.0) * masses[None,:]
         )
         inertia_tensor[1, 1] = np.sum(
-            (coords[:, 0] ** 2.0 + coords[:, 2] ** 2.0) * masses[:, None]
+            (coords[:, 0] ** 2.0 + coords[:, 2] ** 2.0) * masses[None,:]
         )
         inertia_tensor[2, 2] = np.sum(
-            (coords[:, 0] ** 2.0 + coords[:, 1] ** 2.0) * masses[:, None]
+            (coords[:, 0] ** 2.0 + coords[:, 1] ** 2.0) * masses[None,:]
         )
         # off-diagonal elements
-        inertia_tensor[0, 1] = -np.sum(coords[:, 0] * coords[:, 1] * masses[:, None])
-        inertia_tensor[0, 2] = -np.sum(coords[:, 0] * coords[:, 2] * masses[:, None])
-        inertia_tensor[1, 2] = -np.sum(coords[:, 1] * coords[:, 2] * masses[:, None])
-        inertia_tensor = np.maximum(inertia_tensor, inertia_tensor.T)
+        inertia_tensor[0, 1] = -np.sum(coords[:, 0] * coords[:, 1] * masses[None,:])
+        inertia_tensor[1, 0] = inertia_tensor[0, 1]
+        inertia_tensor[0, 2] = -np.sum(coords[:, 0] * coords[:, 2] * masses[None,:])
+        inertia_tensor[2, 0] = inertia_tensor[0, 2]
+        inertia_tensor[1, 2] = -np.sum(coords[:, 1] * coords[:, 2] * masses[None,:])
+        inertia_tensor[2, 1] = inertia_tensor[1, 2]
+        # symmetrize the matrix
+        # inertia_tensor = np.maximum(inertia_tensor, inertia_tensor.T)
         # compute principal moments of inertia
         pmi, pmm = np.linalg.eig(inertia_tensor)
-        # convert PMI to MHz
+        # compute the rotation matrix using SVD
+        _, _, rot = np.linalg.svd(inertia_tensor)
+        # convert PMI to 1/cm
         rot_con = (
             constants.h
             / (8 * (np.pi) ** 2 * (constants.c * 100.0) * pmi)
-            * constants.c
-            / 10.0
         )
+        # convert PMI from 1/cm to MHz
+        rot_con *= constants.c / 100.
         # if we request for a shift, and we haven't already done so
         # we can rotate the atomic coordinates to the principal axis orientation
         if shift and not self.inertial:
             self.inertial = True
             for atom in self.atoms:
-                atom.xyz = rotate_coordinates(atom.xyz, pmm)
+                atom.xyz = rotate_coordinates(atom.xyz, rot)
         # This sorts the rotational constants in order of A > B > C, and similarly
         # the principal axes vectors too (row order)
         ordering = np.argsort(rot_con)[::-1]
@@ -440,6 +450,7 @@ class Molecule:
         template = """===================== Primary input
 Formula: {symbols}
 Masses (AMU): {mass}
+Short masses (AMU): {short_mass}
 ===================== Parameters
 Rotational constants (MHz): {rot_con}
 Inertial axis vectors:
@@ -447,6 +458,7 @@ Inertial axis vectors:
 ===================== Derived values
 Asymmetry parameter: {kappa:.4f}
 Inertial defect (amu A**2): {defect:.4f}
+Scaling factor: {scaling}
         """
         parameter_dict = {
             "symbols": self.get_symbols(),
@@ -455,19 +467,26 @@ Inertial defect (amu A**2): {defect:.4f}
             "inertial_vector": self.pmm,
             "kappa": self.compute_kappa(),
             "defect": self.compute_inertial_defect(),
+            "scaling": self.scaling,
+            "short_mass": np.round(self.get_masses(), 0)
         }
         return template.format_map(parameter_dict)
 
     def generate_isotopologues(self, min_abundance=0.001):
         masses = list()
-        for atom in self.atoms:
-            isotopes = [isotope.mass for isotope in element(atom).isotopes if isotope.abundance]
-            isotopes = filter(isotopes, lambda x: x.abundance >= min_abundance)
+        for symbol in self.get_symbols():
+            isotopes = [isotope for isotope in element(symbol).isotopes if isotope.abundance]
+            isotopes = filter(lambda x: x.abundance >= min_abundance, isotopes)
             masses.append([isotope.mass for isotope in isotopes])
         isotopologues = list()
+        full_con = list()
         # iterate through every combination
         for iso_masses in product(*masses):
             iso =self.modify_atom_masses(iso_masses, copy=True)
             _ = iso.orient()
-            isotopologues.append(iso)
+            if np.round(iso.rot_con.sum(), 6) not in full_con:
+                full_con.append(np.round(iso.rot_con.sum(), 6))
+                isotopologues.append(iso)
+            else:
+                pass
         return isotopologues

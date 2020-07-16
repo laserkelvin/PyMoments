@@ -10,14 +10,23 @@ def test_version():
     assert __version__ == "0.1.0"
 
 
-def test_xyz():
-    xyz_str = """
-    O 0.030541 0.042037 -0.000000
-    H -0.759459 0.042037 -0.000000
-    H 0.274665 -0.709298 0.000000
+def test_isotopologues():
+    zmat_str = """
+    S
+    C 1 1.594
+    C 2 1.275 1 180.0
+    C 3 1.328 2 180.0 1 0.0
+    H 4 1.096 3 122.0 2 0.0
+    H 4 1.096 3 122.0 2 180.0
     """
-    molecule = Molecule.from_xyz(xyz_str)
-    assert len(molecule) == 3
+    molecule = Molecule.from_zmat_string(zmat_str)
+    assert len(molecule) == 6
+    _ = molecule.orient()
+    isotopologues = molecule.generate_isotopologues(min_abundance=1e-4)
+    # we expect at the default level oxygen 18, so two isotopologues
+    assert len(isotopologues) == 96
+    # raise Exception([iso.rot_con for iso in isotopologues])
+    raise Exception("\n".join([iso.dump() for iso in isotopologues]))
 
 
 def test_com():
@@ -73,5 +82,5 @@ def test_legacy_zmat():
     assert np.abs(com - ref_com).sum() <= 1e-2
     # test the whole shebang, and compare rotational constants
     com, rotcon, pmm = molecule.orient()
-    reference = np.array([41792.97459405, 2349.96288366, 2224.86188517])
+    reference = np.array([290228.46266522,   2496.61473982,   2475.32143207])
     assert np.allclose(reference, rotcon)
