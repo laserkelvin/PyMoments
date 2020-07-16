@@ -138,4 +138,3 @@ scaled_isotopologues = [isotopologue * water for isotopologue in isotopologues]
 ### Contributing
 
 Open to pull requests and contributions.
-
