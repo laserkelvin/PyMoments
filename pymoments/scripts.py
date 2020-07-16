@@ -12,8 +12,21 @@ from pymoments.classes import Molecule
     "--format",
     default="zmat",
     type=click.Choice(["legacy", "zmat", "xyz"], case_sensitive=False),
+    help="Specifies the file format to parse."
 )
-def run_pymoments(input_file, format):
+@click.option(
+    "--iso",
+    default=False,
+    is_flag=True,
+    help="Controls whether isotopologues are generated."
+)
+@click.option(
+    "--abundance",
+    default=1e-4,
+    type=float,
+    help="Decimal natural abundance threshold for rare isotopes."
+)
+def run_pymoments(input_file, format, iso, abundance=1e-4):
     """
     Read in internal coordinates from an input file, and print
     out the rotational constants, etc. formatted for reading.
@@ -27,6 +40,12 @@ def run_pymoments(input_file, format):
     2. Z-matrix/internal coordinate format
     
     3. XYZ format
+    
+    For the latter two formats, there is additional support for automatic
+    generation of isotopologues for a molecule. The options `iso` and `abundance`
+    control whether these routines are used, and in the latter case, what
+    the minimum fractional abundance to consider. For example, the default
+    value is 1e-4, which is sufficiently low to account for deuterium.
 
     Parameters
     ----------
@@ -49,3 +68,10 @@ def run_pymoments(input_file, format):
     molecule = parser(zmat_str)
     _ = molecule.orient()
     click.echo(molecule.dump())
+    if iso and format != "legacy":
+        isotopologues = molecule.generate_isotopologues(abundance)
+        click.echo("\n".join(iso.dump() for iso in isotopologues))
+    elif iso and format == "legacy":
+        raise NotImplementedError(
+            "Isotopologue generation is not supported for legacy ZMAT."
+        )
