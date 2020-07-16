@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "pymoments"
+version = "0.1.0"
+description = "Library for calculating molecular rotational constants."
+license = "MIT"
+keywords = ["Spectroscopy", "Rotational Constants", "Molecules"]
+authors = ["Kelvin Lee <kin.long.kelvin.lee@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+numpy = "^1.19.0"
+scipy = "^1.5.1"
+mendeleev = "^0.6.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+black = {version = "^19.10b0", allow-prereleases = true}
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
