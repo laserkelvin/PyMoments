@@ -1,4 +1,3 @@
-
 from typing import List
 from collections import namedtuple
 from copy import deepcopy
@@ -8,7 +7,13 @@ import numpy as np
 from mendeleev import element
 from scipy import constants
 
-from pymoments.main import compute_xyz, compute_angle, rotate_coordinates, kappa, inertial_defect
+from pymoments.main import (
+    compute_xyz,
+    compute_angle,
+    rotate_coordinates,
+    kappa,
+    inertial_defect,
+)
 
 # These namedtuples are convenient for having some structure in
 # how the different types of connectivity can be tracked
@@ -17,7 +22,7 @@ Angle = namedtuple("Angle", "j value")
 Dihedral = namedtuple("Dihedral", "k value")
 
 
-class Atom:    
+class Atom:
     def __init__(self, index: int, symbol: str, mass: float, **kwargs):
         self.index = index
         self.symbol = symbol
@@ -27,12 +32,12 @@ class Atom:
         self.dihedral = None
         self.xyz = np.zeros(3)
         self.__dict__.update(kwargs)
-    
+
     def __repr__(self):
         coords = [f"{value:.6f}" for value in self.xyz.tolist()]
         coords = " ".join(coords)
         return f"{self.symbol} {coords}"
-    
+
 
 class Molecule:
     """
@@ -44,20 +49,21 @@ class Molecule:
     rotational constants for a set of isotopologues, as well as determining
     scaling factors.
     """
+
     def __init__(self, atoms=None):
         self.atoms = atoms
         self.com = False
         self.inertial = False
-        self.scaling = 1.
+        self.scaling = 1.0
         self.rot_con = np.zeros(3)
         self.pmm = np.zeros((3, 3))
-    
+
     def __repr__(self):
         return "\n".join([str(atom) for atom in self.atoms])
-    
+
     def __len__(self):
         return len(self.atoms)
-    
+
     def __truediv__(self, other):
         if type(other) == type(self):
             self.scaling = self.rot_con / other.rot_con
@@ -68,8 +74,10 @@ class Molecule:
             new_molecule.rot_con / other
             return new_molecule
         else:
-            raise NotImplementedError("Illegal division; can only divide with `Molecule`, float, or NumPy array objects!")
-    
+            raise NotImplementedError(
+                "Illegal division; can only divide with `Molecule`, float, or NumPy array objects!"
+            )
+
     def __mul__(self, other):
         if type(other) == type(self):
             new_molecule = deepcopy(self)
@@ -81,8 +89,10 @@ class Molecule:
             new_molecule.scaling = other
             return new_molecule
         else:
-            raise NotImplementedError("Illegal mutiplication; can only multiply with `Molecule`, float, or NumPy array objects!")
-    
+            raise NotImplementedError(
+                "Illegal mutiplication; can only multiply with `Molecule`, float, or NumPy array objects!"
+            )
+
     @classmethod
     def from_zmat_string(cls, zmat_str: str):
         """
@@ -128,7 +138,9 @@ class Molecule:
             split_line = line.split()
             symbol = split_line[0]
             # this is a quick one-liner using list-comprehensions to get the most abundant mass
-            isotopes = [isotope for isotope in element(symbol).isotopes if isotope.abundance]
+            isotopes = [
+                isotope for isotope in element(symbol).isotopes if isotope.abundance
+            ]
             mass = max(isotopes, key=lambda x: x.abundance).mass
             parameters = {key: None for key in ["bond", "angle", "dihedral"]}
             # first atom has nothing
@@ -138,7 +150,9 @@ class Molecule:
                 params = [float(value) for value in split_line[2::2]]
                 # loop over the three types of connectivity for each atom. This loop
                 # will terminate early if it runs out of connectivity/params
-                for c, p, con_type in zip(connectivity, params, [Bond, Angle, Dihedral]):
+                for c, p, con_type in zip(
+                    connectivity, params, [Bond, Angle, Dihedral]
+                ):
                     name = con_type.__name__.lower()
                     # convert angles to radians
                     if name != "bond":
@@ -147,16 +161,40 @@ class Molecule:
             # generate an Atom object with all the data
             atom = Atom(index, symbol, mass, **parameters)
             atoms.append(atom)
-        
+
         # loop again, this time calculating the coordinates
         for atom in atoms:
             atom.xyz = compute_xyz(atom, atoms)
         # create a Molecule object
         molecule = cls(atoms)
         return molecule
-    
+
     @classmethod
     def from_xyz(cls, xyz_str: str):
+        """
+        Create a `Molecule` object from an XYZ string. This does not follow the
+        standard .xyz file format, where the first two lines are the number of
+        atoms and a comment line respectively; rather, this is the format where
+        only the Atom X Y Z per line is required.
+        
+        For example:
+        xyz_str = "
+        O 0.030541 0.042037 -0.000000
+        H -0.759459 0.042037 -0.000000
+        H 0.274665 -0.709298 0.000000
+        "
+
+        Parameters
+        ----------
+        xyz_str : str
+            String containing atom and XYZ specification, with each line
+            corresponding to one atom.
+
+        Returns
+        -------
+        `molecule`
+            Instance of a `Molecule` object
+        """
         xyz_str = xyz_str.strip().split("\n")
         natoms = len(xyz_str)
         atoms = list()
@@ -166,14 +204,22 @@ class Molecule:
             split_line = line.split()
             symbol = split_line[0]
             coords = np.array([float(value) for value in line[1:]])
-            mass = element(symbol).mass
+            # get the most abundant isotope
+            isotopes = [
+                isotope for isotope in element(symbol).isotopes if isotope.abundance
+            ]
+            mass = max(isotopes, key=lambda x: x.abundance).mass
             atoms.append(Atom(index, symbol, mass, **{"xyz": coords}))
         molecule = cls(atoms)
         return molecule
-    
+
     @classmethod
     def from_legacy_zmat(cls, zmat_str: str):
         """
+        Create a `Molecule` object using "legacy" input. This file format is
+        not recommended as it is unable to take advantage of some of the newer
+        functionality, but is supported just for backwards compatibility.
+        
         The legacy input looks like this:
         "
         h2c3s calculations; CPL 326, 530 (2000)    
@@ -190,8 +236,13 @@ class Molecule:
 
         Parameters
         ----------
-        zmat_str : str
-            [description]
+        zmat : str
+            String containing 
+
+        Returns
+        -------
+        molecule
+            Instance of a `Molecule` object
         """
         zmat_str = zmat_str.strip().split("\n")
         # skip two comment lines
@@ -213,7 +264,7 @@ class Molecule:
                     pass
                 else:
                     # Read in the connectivity and parameters
-                    for offset, con_type in zip(range(1,4), [Bond, Angle, Dihedral]):
+                    for offset, con_type in zip(range(1, 4), [Bond, Angle, Dihedral]):
                         name = con_type.__name__.lower()
                         # get the connectivity
                         connection = int(split_line[offset])
@@ -231,17 +282,39 @@ class Molecule:
             atom.xyz = compute_xyz(atom, atoms)
         molecule = cls(atoms)
         return molecule
-                
-    
+
     def get_coords(self):
         return np.vstack([atom.xyz for atom in self.atoms])
-    
+
     def get_masses(self):
         return np.array([atom.mass for atom in self.atoms])
-    
+
     def get_symbols(self):
         return "".join([atom.symbol for atom in self.atoms])
-    
+
+    def modify_atom_masses(self, masses: np.ndarray, copy=False):
+        """
+        Modify the atom masses of this molecule. This function can
+        operate in two ways: if `copy=True`, then a new `Molecule`
+        object is returned with the new masses. Otherwise, the masses
+        are modified in-place.
+
+        Parameters
+        ----------
+        masses : np.ndarray
+            [description]
+        """
+        assert len(masses) == len(self)
+        print(f"Old masses: {self.get_masses()}")
+        if copy:
+            new_molecule = deepcopy(self)
+            new_molecule.modify_atom_masses(masses, copy=False)
+            return new_molecule
+        else:
+            for atom, new_mass in zip(self.atoms, masses):
+                atom.mass = new_mass
+            return None
+
     def compute_com(self, shift=False) -> np.ndarray:
         """
         Compute the center of mass coordinates for the `Molecule`.
@@ -262,13 +335,13 @@ class Molecule:
         coords = self.get_coords()
         masses = self.get_masses()
         # vectorized computation of the center of mass
-        com = np.sum(masses[:,None] * coords, axis=0) / masses.sum()
+        com = np.sum(masses[:, None] * coords, axis=0) / masses.sum()
         if shift and not self.com:
             self.com = True
             for atom in self.atoms:
                 atom.xyz -= com
         return com
-    
+
     def compute_inertia_tensor(self, shift=False):
         """
         Calculate the moments of inertia tensor, and diagonalize it to
@@ -297,22 +370,33 @@ class Molecule:
         coords = self.get_coords()
         masses = self.get_masses()
         # unit conversions; everything is better in SI
-        coords *= 1e-9   # to meters
+        coords *= 1e-9  # to meters
         masses *= constants.atomic_mass
         inertia_tensor = np.zeros((3, 3))
         # hard coded inertia matrix elements
-        inertia_tensor[0,0] = np.sum((coords[:,1]**2. + coords[:,2]**2.) * masses[:,None])
-        inertia_tensor[1,1] = np.sum((coords[:,0]**2. + coords[:,2]**2.) * masses[:,None])
-        inertia_tensor[2,2] = np.sum((coords[:,0]**2. + coords[:,1]**2.) * masses[:,None])
+        inertia_tensor[0, 0] = np.sum(
+            (coords[:, 1] ** 2.0 + coords[:, 2] ** 2.0) * masses[:, None]
+        )
+        inertia_tensor[1, 1] = np.sum(
+            (coords[:, 0] ** 2.0 + coords[:, 2] ** 2.0) * masses[:, None]
+        )
+        inertia_tensor[2, 2] = np.sum(
+            (coords[:, 0] ** 2.0 + coords[:, 1] ** 2.0) * masses[:, None]
+        )
         # off-diagonal elements
-        inertia_tensor[0,1] = -np.sum(coords[:,0] * coords[:,1] * masses[:,None])
-        inertia_tensor[0,2] = -np.sum(coords[:,0] * coords[:,2] * masses[:,None])
-        inertia_tensor[1,2] = -np.sum(coords[:,1] * coords[:,2] * masses[:,None])
+        inertia_tensor[0, 1] = -np.sum(coords[:, 0] * coords[:, 1] * masses[:, None])
+        inertia_tensor[0, 2] = -np.sum(coords[:, 0] * coords[:, 2] * masses[:, None])
+        inertia_tensor[1, 2] = -np.sum(coords[:, 1] * coords[:, 2] * masses[:, None])
         inertia_tensor = np.maximum(inertia_tensor, inertia_tensor.T)
         # compute principal moments of inertia
         pmi, pmm = np.linalg.eig(inertia_tensor)
         # convert PMI to MHz
-        rot_con = constants.h / (8 * (np.pi)**2 * (constants.c * 100.) * pmi) * constants.c / 10.
+        rot_con = (
+            constants.h
+            / (8 * (np.pi) ** 2 * (constants.c * 100.0) * pmi)
+            * constants.c
+            / 10.0
+        )
         # if we request for a shift, and we haven't already done so
         # we can rotate the atomic coordinates to the principal axis orientation
         if shift and not self.inertial:
@@ -323,7 +407,7 @@ class Molecule:
         # the principal axes vectors too (row order)
         ordering = np.argsort(rot_con)[::-1]
         return rot_con[ordering], pmm[ordering]
-    
+
     def orient(self):
         """
         Shifts the molecular cartesian coordinates into the center of mass and
@@ -340,7 +424,7 @@ class Molecule:
         (rotational_constants, inertial_vector) = self.compute_inertia_tensor(True)
         self.rot_con, self.pmm = rotational_constants, inertial_vector
         return com, rotational_constants, inertial_vector
-    
+
     def compute_kappa(self):
         if not self.com or not self.inertial:
             warn("Not in center of mass or principal axis frame; not meaningful!")
@@ -350,7 +434,7 @@ class Molecule:
         if not self.com or not self.inertial:
             warn("Not in center of mass or principal axis frame; not meaningful!")
         return inertial_defect(*self.rot_con)
-    
+
     def dump(self):
         template = """===================== Primary input
         Formula: {symbols}
@@ -368,6 +452,6 @@ class Molecule:
             "rot_con": self.rot_con,
             "inertial_vector": self.pmm,
             "kappa": self.compute_kappa(),
-            "defect": self.compute_inertial_defect()
+            "defect": self.compute_inertial_defect(),
         }
         return template.format_map(parameter_dict)

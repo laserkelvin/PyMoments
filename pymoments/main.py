@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass
 from collections import namedtuple
 from typing import List
@@ -45,13 +44,13 @@ def compute_xyz(atom: "Atom", atom_list: List[str]):
         dist, ang = atom.bond.value, atom.angle.value
         # for the third atom, constrain in-plane with the first two
         if index == 2:
-            tor_angle = np.deg2rad(90.)
-            c_coords = np.array([0., 0., 1.])
+            tor_angle = np.deg2rad(90.0)
+            c_coords = np.array([0.0, 0.0, 1.0])
         # for all other atoms, go nuts
         else:
             tor_angle, tor_index = atom.dihedral.value, atom.dihedral.k
             c_coords = atom_list[tor_index].xyz
-        
+
         # do a crap load of trigonometry
         v1 = a_coords - b_coords
         v2 = a_coords - c_coords

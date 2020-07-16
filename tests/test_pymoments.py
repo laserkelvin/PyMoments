@@ -1,4 +1,3 @@
-
 from warnings import warn
 
 from pymoments import __version__
@@ -8,7 +7,7 @@ import numpy as np
 
 
 def test_version():
-    assert __version__ == '0.1.0'
+    assert __version__ == "0.1.0"
 
 
 def test_com():
@@ -47,19 +46,22 @@ def test_legacy_zmat():
     ref_mass = [31.972070, 12.000000, 12.000000, 12.000000, 1.007825, 1.007825]
     assert np.allclose(molecule.get_masses(), ref_mass)
     # make sure the cartesian coordinates are the same
-    ref_coords = np.array([[ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00],
-       [ 1.59400000e+00,  0.00000000e+00,  0.00000000e+00],
-       [ 2.86900000e+00, -1.56142467e-16,  9.56096861e-33],
-       [ 4.19700000e+00, -4.81408657e-16,  2.94777785e-32],
-       [ 4.77779151e+00, -9.29460713e-01,  5.69130544e-17],
-       [ 4.77779151e+00,  9.29460713e-01, -1.70739163e-16]])
+    ref_coords = np.array(
+        [
+            [0.00000000e00, 0.00000000e00, 0.00000000e00],
+            [1.59400000e00, 0.00000000e00, 0.00000000e00],
+            [2.86900000e00, -1.56142467e-16, 9.56096861e-33],
+            [4.19700000e00, -4.81408657e-16, 2.94777785e-32],
+            [4.77779151e00, -9.29460713e-01, 5.69130544e-17],
+            [4.77779151e00, 9.29460713e-01, -1.70739163e-16],
+        ]
+    )
     assert np.allclose(molecule.get_coords(), ref_coords)
     # make sure the COM is correct
     com = molecule.compute_com()
-    ref_com = np.array([1.62087129e+00, -1.25094696e-16, -1.63635732e-18])
+    ref_com = np.array([1.62087129e00, -1.25094696e-16, -1.63635732e-18])
     assert np.abs(com - ref_com).sum() <= 1e-2
+    # test the whole shebang, and compare rotational constants
     com, rotcon, pmm = molecule.orient()
-    reference = np.array([41792.97459405,  2349.96288366,  2224.86188517])
+    reference = np.array([41792.97459405, 2349.96288366, 2224.86188517])
     assert np.allclose(reference, rotcon)
-    # test the dump
-    print(molecule.dump())
