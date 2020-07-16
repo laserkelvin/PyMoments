@@ -1,6 +1,7 @@
 # PyMoments
 
-![Python application](https://github.com/laserkelvin/PyMoments/workflows/Python%20application/badge.svg?branch=master)
+![Poetry CI build](https://github.com/laserkelvin/PyMoments/workflows/Poetry%20CI%20build/badge.svg)
+[![DOI](https://zenodo.org/badge/280154706.svg)](https://zenodo.org/badge/latestdoi/280154706)
 
 This is a Python library for calculating rotational constants from some standard forms of
 input, for example XYZ and Z-matrix representations. Additionally, there is some high-level
