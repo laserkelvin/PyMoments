@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pymoments"
-version = "0.1.0"
+version = "0.1.1"
 description = "Library for calculating molecular rotational constants."
 license = "MIT"
 keywords = ["Spectroscopy", "Rotational Constants", "Molecules"]
