@@ -12,7 +12,7 @@ isotopologues.
 ## Instructions
 
 This package is managed using `poetry`, and so the first and foremost requirement is to install it
-using `pip install poetry`. Once you have `poetry` installed, clone this repository, and run `poetry install`.
+using `pip install poetry`. Once you have `poetry` installed, clone this repository, and run `poetry install`, and `pip install .`
 
 If you use PyMoments for your work, consider citing the Zenodo DOI (provided in the badge above).
 
