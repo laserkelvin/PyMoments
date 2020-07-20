@@ -24,6 +24,15 @@ Dihedral = namedtuple("Dihedral", "k value")
 
 
 class Atom:
+    """
+    Representation of an "atom", possessing attributes such as the atomic
+    symbol, the mass, and the connectivity/values of internal coordinate
+    parameters.
+    
+    This class could honestly be written as a `namedtuple`, but the
+    cartesian coordinates would otherwise be immutable which is not
+    necessarily desirable.
+    """
     def __init__(self, index: int, symbol: str, mass: float, **kwargs):
         self.index = index
         self.symbol = symbol
@@ -287,13 +296,38 @@ class Molecule:
         molecule = cls(atoms)
         return molecule
 
-    def get_coords(self):
+    def get_coords(self) -> np.ndarray:
+        """
+        Return the Cartesian coordinates for each atom as a
+        NumPy 2D array (shape N x 3; x, y, z)
+
+        Returns
+        -------
+        np.ndarray
+            NumPy 2D array containing coordinates of every atom.
+        """
         return np.vstack([atom.xyz for atom in self.atoms])
 
-    def get_masses(self):
+    def get_masses(self) -> np.ndarray:
+        """
+        Return a NumPy 1D array of masses for each atom.
+
+        Returns
+        -------
+        np.ndarray
+            Atomic masses of each atom in the `Molecule`.
+        """
         return np.array([atom.mass for atom in self.atoms])
 
-    def get_symbols(self):
+    def get_symbols(self) -> List[str]:
+        """
+        Return the atomic symbols in this molecule as a list of strings.
+
+        Returns
+        -------
+        List[str]
+            String representation of atomic symbols.
+        """
         return "".join([atom.symbol for atom in self.atoms])
 
     def modify_atom_masses(self, masses: np.ndarray, copy=False):
@@ -456,6 +490,8 @@ Inertial axis vectors:
 Asymmetry parameter: {kappa:.4f}
 Inertial defect (amu A**2): {defect:.4f}
 Scaling factor: {scaling}
+===================== Cartesian coordinates
+{cartesian}
         """
         parameter_dict = {
             "symbols": self.get_symbols(),
@@ -466,10 +502,41 @@ Scaling factor: {scaling}
             "defect": self.compute_inertial_defect(),
             "scaling": self.scaling,
             "short_mass": np.round(self.get_masses(), 0),
+            "cartesian": str(self)
         }
         return template.format_map(parameter_dict)
 
-    def generate_isotopologues(self, min_abundance=0.001):
+    def generate_isotopologues(self, min_abundance=0.001, dp=6):
+        """
+        Exhaustively generate `Molecule` objects for every unique isotopologue that is
+        sufficiently high in natural abundance, specified with the `min_abundance` kwarg.
+        This routine relies on atomic symbols being defined, and uses them to perform
+        a lookup of isotopes for each symbol—for this reason, `Molecule` objects created
+        from legacy ZMAT files are unable to do this, as the symbols are not explicitly
+        defined.
+        
+        Only unique isotopologues are returned: this is determined by comparing the sum of
+        the resulting rotational constants, rounded to the nearest `dp` decimal places.
+        While there are probably more clever ways to detect symmetry, this is the most
+        straightforward way (given how we brag about how precise rotational spectroscopy is).
+
+        Parameters
+        ----------
+        min_abundance : float, optional
+            The threshold for natural fractional abundance of an isotope to use as a
+            cutoff; the default value (0.001) will include deuterium for example (<0.02%)
+            
+        dp : int, optional
+            Number of decimal places to round the sum of rotational constants to for
+            determine uniqueness. This shouldn't need to be tweaked, but if you have
+            floating point precision issues this may need to be lowered to loosen
+            the comparison criterion.
+
+        Returns
+        -------
+        list
+            List of `Molecule` objects 
+        """
         masses = list()
         for symbol in self.get_symbols():
             isotopes = [
@@ -483,8 +550,8 @@ Scaling factor: {scaling}
         for iso_masses in product(*masses):
             iso = self.modify_atom_masses(iso_masses, copy=True)
             _ = iso.orient()
-            if np.round(iso.rot_con.sum(), 6) not in full_con:
-                full_con.append(np.round(iso.rot_con.sum(), 6))
+            if np.round(iso.rot_con.sum(), dp) not in full_con:
+                full_con.append(np.round(iso.rot_con.sum(), dp))
                 isotopologues.append(iso)
             else:
                 pass
