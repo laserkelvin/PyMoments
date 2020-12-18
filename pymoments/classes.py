@@ -550,7 +550,7 @@ Scaling factor: {scaling}
         for iso_masses in product(*masses):
             iso = self.modify_atom_masses(iso_masses, copy=True)
             _ = iso.orient()
-            if np.round(iso.rot_con.sum(), dp) not in full_con:
+            if np.round(np.nansum(iso.rot_con), dp) not in full_con:
                 full_con.append(np.round(iso.rot_con.sum(), dp))
                 isotopologues.append(iso)
             else:
