@@ -1,6 +1,5 @@
 # PyMoments
 
-![Poetry CI build](https://github.com/laserkelvin/PyMoments/workflows/Poetry%20CI%20build/badge.svg)
 [![DOI](https://zenodo.org/badge/280154706.svg)](https://zenodo.org/badge/latestdoi/280154706)
 
 This is a Python library for calculating rotational constants from some standard forms of
@@ -11,8 +10,12 @@ isotopologues.
 
 ## Instructions
 
-This package is managed using `poetry`, and so the first and foremost requirement is to install it
-using `pip install poetry`. Once you have `poetry` installed, clone this repository, and run `poetry install`, and `pip install .`
+Installation should be relatively straightforward, either clone this repository followed by `pip`,
+or directly:
+
+```bash
+pip install git+https://github.com/laserkelvin/PyMoments
+```
 
 If you use PyMoments for your work, consider citing the Zenodo DOI (provided in the badge above).
 
